@@ -1,7 +1,14 @@
-<h1>I'm Hanae</h1>
+<h1>数独対戦ゲーム</h1>
 <style>
+  .sudoku-container {
+    display: flex;
+    justify-content: space-around;
+  }
+  .player-grid {
+    text-align: center;
+  }
   .sudoku-grid {
-    display: grid;
+    display: inline-grid;
     grid-template-columns: repeat(9, 40px);
     gap: 1px;
     margin-bottom: 20px;
@@ -20,19 +27,43 @@
     text-align: center;
     font-size: 20px;
   }
+  .current-player {
+    font-weight: bold;
+    color: #007bff;
+  }
+  .hint {
+    background-color: #ffe6e6;
+  }
 </style>
 
-<div id="sudoku-container">
-  <div class="sudoku-grid" id="sudoku-grid"></div>
-  <button onclick="checkSolution()">解答をチェック</button>
+<div class="sudoku-container">
+  <div class="player-grid">
+    <h2>プレイヤー1</h2>
+    <div class="sudoku-grid" id="sudoku-grid-1"></div>
+    <button onclick="checkSolution(1)">解答をチェック</button>
+    <button onclick="getHint(1)">ヒントを使う</button>
+    <p>残りヒント: <span id="hint-count-1">3</span></p>
+  </div>
+  <div class="player-grid">
+    <h2>プレイヤー2</h2>
+    <div class="sudoku-grid" id="sudoku-grid-2"></div>
+    <button onclick="checkSolution(2)">解答をチェック</button>
+    <button onclick="getHint(2)">ヒントを使う</button>
+    <p>残りヒント: <span id="hint-count-2">3</span></p>
+  </div>
 </div>
 
 <script>
-  const sudokuGrid = document.getElementById('sudoku-grid');
+  const sudokuGrid1 = document.getElementById('sudoku-grid-1');
+  const sudokuGrid2 = document.getElementById('sudoku-grid-2');
+  const hintCount1 = document.getElementById('hint-count-1');
+  const hintCount2 = document.getElementById('hint-count-2');
   let solution = [];
+  let hintCounts = [3, 3];
+  let gameEnded = false;
 
   function generateSudoku() {
-    // 簡単な数独パズルを生成（実際のゲームでは、もっと複雑なアルゴリズムを使用します）
+    // 簡単な数独パズルを生成
     solution = [
       [5,3,4,6,7,8,9,1,2],
       [6,7,2,1,9,5,3,4,8],
@@ -45,27 +76,53 @@
       [3,4,5,2,8,6,1,7,9]
     ];
 
+    // プレイヤー用のグリッドを作成（解答のコピー）
+    const grid = JSON.parse(JSON.stringify(solution));
+
+    // セルを空にする
+    const emptyCount = 60;
+    let count = 0;
+    while (count < emptyCount) {
+      const row = Math.floor(Math.random() * 9);
+      const col = Math.floor(Math.random() * 9);
+      if (grid[row][col] !== 0) {
+        grid[row][col] = 0;
+        count++;
+      }
+    }
+
+    // 両プレイヤーのHTMLグリッドを生成
+    generateGrid(sudokuGrid1, grid);
+    generateGrid(sudokuGrid2, grid);
+  }
+
+  function generateGrid(gridElement, grid) {
+    gridElement.innerHTML = '';
     for (let i = 0; i < 9; i++) {
       for (let j = 0; j < 9; j++) {
         const cell = document.createElement('div');
         cell.className = 'sudoku-cell';
-        if (Math.random() > 0.5) {
-          cell.textContent = solution[i][j];
+        if (grid[i][j] !== 0) {
+          cell.textContent = grid[i][j];
         } else {
           const input = document.createElement('input');
           input.type = 'number';
           input.min = 1;
           input.max = 9;
+          input.dataset.row = i;
+          input.dataset.col = j;
           cell.appendChild(input);
         }
-        sudokuGrid.appendChild(cell);
+        gridElement.appendChild(cell);
       }
     }
   }
 
-  function checkSolution() {
+  function checkSolution(player) {
+    if (gameEnded) return;
+    const grid = player === 1 ? sudokuGrid1 : sudokuGrid2;
     let correct = true;
-    const cells = sudokuGrid.children;
+    const cells = grid.children;
     for (let i = 0; i < 81; i++) {
       const row = Math.floor(i / 9);
       const col = i % 9;
@@ -76,9 +133,36 @@
         break;
       }
     }
-    alert(correct ? '正解です！' : '不正解です。もう一度試してください。');
+    if (correct) {
+      alert(`プレイヤー${player}の勝利です！`);
+      gameEnded = true;
+    } else {
+      alert('不正解！もう一度試してください。');
+    }
+  }
+
+  function getHint(player) {
+    if (gameEnded) return;
+    const grid = player === 1 ? sudokuGrid1 : sudokuGrid2;
+    const hintCountElement = player === 1 ? hintCount1 : hintCount2;
+    if (hintCounts[player - 1] > 0) {
+      const emptyCells = Array.from(grid.querySelectorAll('.sudoku-cell input:not([readonly])'));
+      if (emptyCells.length > 0) {
+        const randomCell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+        const row = parseInt(randomCell.dataset.row);
+        const col = parseInt(randomCell.dataset.col);
+        randomCell.value = solution[row][col];
+        randomCell.readOnly = true;
+        randomCell.parentElement.classList.add('hint');
+        hintCounts[player - 1]--;
+        hintCountElement.textContent = hintCounts[player - 1];
+      } else {
+        alert('ヒントを使用できる空のセルがありません。');
+      }
+    } else {
+      alert('ヒントを使い切りました。');
+    }
   }
 
   generateSudoku();
 </script>
-
